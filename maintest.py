@@ -34,9 +34,6 @@ SUPPORTED_LANGUAGES = {
     'Chinese': 'zh_CN_Text-WindowsClient'
 }
 
-# Log File Folder
-LOG_FILE_FOLDER = Path(os.path.join(os.getenv('LOCALAPPDATA'), 'Riot Games', 'Riot Client', 'logs', 'riot client logs')).resolve()
-
 # Script Folder
 SCRIPT_FOLDER = Path(os.path.join(os.getenv('LOCALAPPDATA'), 'VALTEXT')).resolve()
 
@@ -192,34 +189,34 @@ class RiotGames:
 
 class LogFile:
     def __init__(self):
+        self.logfile = Path(os.path.join(os.getenv('LOCALAPPDATA'), 'Riot Games', 'Riot Client', 'logs', 'riot client logs')).resolve()
+
         self.last_read_position = 0
-        self.log = LOG_FILE_FOLDER
-        self.new_log = None
+
+        self.log = None  # Initialize log with None
+        self.new_log = None  # Initialize new_log with None
 
     def find_log(self):
-        log_files = glob.glob(os.path.join(self.log, '*.log'))
+        log_files = glob.glob(os.path.join(self.logfile, '*.log'))
         if not log_files:
-            return False
+            return None
 
         log_files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
 
-        self.log = log_files[0]
-
-        return True
+        return log_files[0]
 
     def parse_log(self):
         while True:
+            if self.log is None:
+                self.log = self.find_log()  # If log is None, find the latest log file
+
+            if not os.path.exists(self.log):
+                print('Log file does not exist. Waiting for log file to be created...')
+                sleep(1)
+                continue
+
             with open(self.log, 'r') as file:
                 file.seek(self.last_read_position)
-
-                self.new_log = self.find_log()
-
-                if self.log != self.new_log:
-                    display.debug_screen(f"Switching to read the new log file: {self.new_log}")
-                    self.log = self.new_log
-                    self.last_read_position = 0
-                    sleep(0.5)
-                    continue
 
                 content = file.readlines()
                 triggers.check_triggers(content)
@@ -285,7 +282,8 @@ class Settings:
         self.voice_input = 0
 
     def change_language(self, language_type, default_language, default_language_code):
-        print(Display.colored_screen(f'Current {language_type} Language: {default_language} File Name: {default_language_code}', COLOR_YELLOW))
+        print(Display.colored_screen(
+            f'Current {language_type} Language: {default_language} File Name: {default_language_code}', COLOR_YELLOW))
 
         change_lang_input = input("Do you want to change this language? (y/n): ").lower()
 
@@ -303,7 +301,9 @@ class Settings:
                     setattr(self, f'{language_type.lower()}_language', selected_language)
                     setattr(self, f'{language_type.lower()}_language_code', selected_language_code)
 
-                    print(Display.colored_screen(f'{language_type} language changed to {selected_language} ({selected_language_code})', COLOR_GREEN))
+                    print(Display.colored_screen(
+                        f'{language_type} language changed to {selected_language} ({selected_language_code})',
+                        COLOR_GREEN))
 
                     # Update default language variables
                     if language_type == 'Text':
@@ -323,13 +323,18 @@ class Settings:
             print(Display.colored_screen('Invalid input. No changes made.', COLOR_RED))
 
     def change_text_language(self):
-        self.change_language('Text', self.text_language, self.text_language_code)
+        try:
+            self.change_language('Text', self.text_language, self.text_language_code)
 
-        print(self.text_language)
-        print(self.text_language_code)
-        print(self.text_language_folder)
-        print(self.text_language_pak)
-        print(self.text_language_sig)
+            print("After change_language call")
+            print(self.text_language)
+            print(self.text_language_code)
+            print(self.text_language_folder)
+            print(self.text_language_pak)
+            print(self.text_language_sig)
+        except Exception as er:
+            print(f"Error in change_text_language: {er}")
+            raise e
 
     def change_voice_language(self):
         self.change_language('Voice', self.voice_language, self.voice_language_code)
@@ -351,7 +356,9 @@ class Settings:
             input(Display.colored_screen('Press Enter to Continue...', COLOR_YELLOW))
 
             try:
-                print(Display.colored_screen(f"Copying {source_sig} to {destination_sig}\nCopying {source_pak} to {destination_pak}", COLOR_GREEN))
+                print(Display.colored_screen(
+                    f"Copying {source_sig} to {destination_sig}\nCopying {source_pak} to {destination_pak}",
+                    COLOR_GREEN))
                 shutil.copy(source_sig, destination_sig)
                 shutil.copy(source_pak, destination_pak)
                 print(Display.colored_screen("Copy successful!", COLOR_GREEN))
@@ -363,6 +370,7 @@ class Settings:
 
 class Error:
     def __init__(self):
+        pass
         self.seconds = 0
 
     def exit(self, seconds):
@@ -371,14 +379,19 @@ class Error:
 
 
 if __name__ == "__main__":
-    #initialize = Initialize()
-    #display = Display()
-    checks = Checks()
-    #riotgames = RiotGames()
-    #log_file = LogFile()
-    #triggers = Triggers()
-    #settings = Settings()
-    #errors = Error()
-    #initialize.script_started()
+    try:
+        print('Hi')
+        initialize = Initialize()
+        display = Display()
+        checks = Checks()
+        riotgames = RiotGames()
+        log_file = LogFile()
+        triggers = Triggers()
+        errors = Error()
+        settings = Settings()
 
-    checks.copy_text_language_files()
+        initialize.script_started()
+
+    except Exception as e:
+        print(f"Error in main block: {e}")
+        raise e
