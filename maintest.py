@@ -61,11 +61,14 @@ COLOR_YELLOW = '\033[1;93m'
 COLOR_RED = '\033[1;91m'
 COLOR_CYAN = '\033[1;96m'
 COLOR_BOLD = '\033[1m'
+COLOR_PURPLE = '\033[1;95m'
+COLOR_ORANGE = '\033[1;33m'
+COLOR_GRAY = '\033[1;90m'
 
 
 class Initialize:
     def __init__(self):
-        print(Display().colored_screen('Initialization Started...', COLOR_RED))
+        print(Display().colored_screen('Initialization Started...', COLOR_ORANGE))
         sleep(2)
         pass
 
@@ -86,7 +89,7 @@ class Initialize:
             else:
                 print(Display().debug_screen('Make sure you have permissions to make folders'))
         else:
-            pass
+            Settings().set_language_manually()
 
 
 class Display:
@@ -106,13 +109,13 @@ class Display:
     def clear_screen(self=None):
         os.system('cls' if os.name == 'nt' else 'clear')
         print(self.colored_screen('----------------------------------', COLOR_RED))
-        print(self.colored_screen(f'ValText - {self.branch} Version {self.version}', COLOR_GREEN))
+        print(self.colored_screen(f'ValText - {self.branch} Version {self.version}', COLOR_PURPLE))
         print(self.colored_screen('----------------------------------', COLOR_RED))
         return
 
     def welcome_screen(self):
         print(self.colored_screen('Welcome', COLOR_GREEN))
-        start = int(input(self.colored_screen("Press 0 to Start, Any Other (1-9) for Settings: ", COLOR_YELLOW)))
+        start = int(input(self.colored_screen("Press 0 to Start, Any Other (1-9) for Settings: ", COLOR_GRAY)))
         if start == 0:
             self.clear_screen()
             return True
@@ -378,15 +381,14 @@ class Settings:
             input(Display().colored_screen('Press Enter to Continue...', COLOR_YELLOW))
 
             try:
-                print(Display().colored_screen(
-                    f"Copying {source_sig} to {destination_sig}\nCopying {source_pak} to {destination_pak}",
-                    COLOR_GREEN))
+                print(Display().debug_screen(
+                    f"Copying {source_sig} to {destination_sig}\nCopying {source_pak} to {destination_pak}"))
                 shutil.copy(source_sig, destination_sig)
                 shutil.copy(source_pak, destination_pak)
                 print(Display().colored_screen("Copy successful!", COLOR_GREEN))
                 return True
             except FileNotFoundError as error:
-                print(Display().colored_screen(f"Error copying {source_sig} to {destination_sig}: {error}", COLOR_RED))
+                print(Display().debug_screen(f"Error copying {source_sig} to {destination_sig}: {error}"))
                 return False
 
 
@@ -405,12 +407,18 @@ class Config:
         self.config = self.load_config()
 
     def save_config(self):
-        with open(self.filename, 'w') as file:
-            json.dump({'RIOT_GAMES_ROOT_FOLDER': self.config}, file)
+        script_folder = SCRIPT_FOLDER
+        config_path = script_folder / self.filename
+
+        with open(config_path, 'w') as file:
+            json.dump({'RIOT_GAMES_ROOT_FOLDER': str(RIOT_GAMES_ROOT_FOLDER)}, file)
 
     def load_config(self):
+        script_folder = SCRIPT_FOLDER
+        config_path = script_folder / self.filename
+
         try:
-            with open(self.filename, 'r') as file:
+            with open(config_path, 'r') as file:
                 config = json.load(file)
             return config.get('RIOT_GAMES_ROOT_FOLDER', None)
         except FileNotFoundError:
@@ -423,7 +431,7 @@ class Config:
             print(Display().colored_screen("Enter your Riot Games Folder Location:", COLOR_YELLOW))
             print(Display().colored_screen("Example: D:\\Riot Games", COLOR_CYAN))
             print(Display().colored_screen("Make sure it has both Riot Client and VALORANT Folders in it!!", COLOR_RED))
-            answer = input(Display.colored_screen('Enter Location: ', COLOR_GREEN))
+            answer = input(Display().colored_screen('Enter Location: ', COLOR_GRAY))
 
             self.config = answer
             RIOT_GAMES_ROOT_FOLDER = Path(answer).resolve()
