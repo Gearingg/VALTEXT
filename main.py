@@ -1,10 +1,10 @@
-import os
-import glob
-import re
-import shutil
-import subprocess
-import sys
-import json
+from os import path as ospath, getenv as osgetenv, name as osname, system as ossystem
+from glob import glob
+from re import match as rematch
+from shutil import copy
+from subprocess import Popen
+from sys import exit
+from json import dump, load
 from pathlib import Path
 from time import sleep
 
@@ -32,7 +32,7 @@ SUPPORTED_LANGUAGES = {
 }
 
 # Script Folder
-SCRIPT_FOLDER = Path(os.path.join(os.getenv('LOCALAPPDATA'), 'VALTEXT')).resolve()
+SCRIPT_FOLDER = Path(ospath.join(osgetenv('LOCALAPPDATA'), 'VALTEXT')).resolve()
 
 DEFAULT_TEXT_LANGUAGE = 'English'
 DEFAULT_TEXT_LANGUAGE_CODE = SUPPORTED_LANGUAGES[DEFAULT_TEXT_LANGUAGE]
@@ -107,7 +107,7 @@ class Display:
             print(self.colored_screen(f"DEBUG: {message}", COLOR_RED))
 
     def clear_screen(self=None):
-        os.system('cls' if os.name == 'nt' else 'clear')
+        ossystem('cls' if osname == 'nt' else 'clear')
         print(self.colored_screen('----------------------------------', COLOR_RED))
         print(self.colored_screen(f'ValText - {self.branch} Version {self.version}', COLOR_PURPLE))
         print(self.colored_screen('----------------------------------', COLOR_RED))
@@ -163,7 +163,7 @@ class Checks:
                     print(Display().colored_screen(f'Copying Files...', COLOR_CYAN))
                     renamed_file = filename.name.replace(self.text_code, self.voice_code)
                     renameddestination = self.valorant_folder / renamed_file
-                    shutil.copy(filename, renameddestination)
+                    copy(filename, renameddestination)
 
             print(Display().colored_screen(f'Copied all Files...', COLOR_GREEN))
             sleep(1)
@@ -177,7 +177,7 @@ class Checks:
         try:
             for filename in self.voice_folder.iterdir():
                 if filename.name.startswith(self.voice_code):
-                    shutil.copy(filename, self.valorant_folder)
+                    copy(filename, self.valorant_folder)
                     return True
         except Exception as error:
             print(Display().debug_screen(f"Error Copying Files: {error}"))
@@ -190,7 +190,7 @@ class RiotGames:
 
     def start_riot_client(self):
         try:
-            subprocess.Popen([self.riot_client])
+            Popen([self.riot_client])
             print(Display().colored_screen(f"Starting Riot Client...", COLOR_CYAN))
             return True
         except Exception as error:
@@ -204,7 +204,7 @@ class RiotGames:
         ]
 
         try:
-            subprocess.Popen([self.riot_client] + arguments)
+            Popen([self.riot_client] + arguments)
             print(Display().colored_screen(f"Launching Valorant...", COLOR_CYAN))
             return True
         except Exception as error:
@@ -214,7 +214,7 @@ class RiotGames:
 
 class LogFile:
     def __init__(self):
-        self.riot_base_path = Path(os.path.join(os.getenv('LOCALAPPDATA'), 'Riot Games')).resolve()
+        self.riot_base_path = Path(ospath.join(osgetenv('LOCALAPPDATA'), 'Riot Games')).resolve()
         self.client_logs_path = (self.riot_base_path / 'Riot Client' / 'logs ' / 'riot client logs').resolve()
         self.logfile = (self.riot_base_path / self.client_logs_path).resolve()
         self.last_read_position = 0
@@ -223,11 +223,11 @@ class LogFile:
         self.new_log = None  # Initialize new_log with None
 
     def find_log(self):
-        log_files = glob.glob(os.path.join(self.logfile, '*.log'))
+        log_files = glob(ospath.join(self.logfile, '*.log'))
         if not log_files:
             pass
 
-        log_files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+        log_files.sort(key=lambda x: ospath.getmtime(x), reverse=True)
 
         return log_files[0]
 
@@ -236,7 +236,7 @@ class LogFile:
             if self.log is None:
                 self.log = self.find_log()  # If log is None, find the latest log file
 
-            if not os.path.exists(self.log):
+            if not ospath.exists(self.log):
                 print('Log file does not exist. Waiting for log file to be created...')
                 sleep(1)
                 continue
@@ -258,7 +258,7 @@ class Triggers:
     def check_triggers(self, log):
         for line in log:
             Display().debug_screen(f"Checking line: {line}")
-            match = re.match(self.trigger_pattern, line)
+            match = rematch(self.trigger_pattern, line)
             if match:
                 Display().debug_screen(f"Trigger matched: \n{line}")
                 old_state, new_state = match.group(2).strip('\''), match.group(3).strip('\'')
@@ -407,8 +407,8 @@ class Settings:
             try:
                 print(Display().debug_screen(
                     f"Copying {source_sig} to {destination_sig}\nCopying {source_pak} to {destination_pak}"))
-                shutil.copy(source_sig, destination_sig)
-                shutil.copy(source_pak, destination_pak)
+                copy(source_sig, destination_sig)
+                copy(source_pak, destination_pak)
                 print(Display().colored_screen("Copy successful!", COLOR_GREEN))
                 return True
             except FileNotFoundError as error:
@@ -422,7 +422,7 @@ class Error:
 
     def exit(self, seconds):
         self.seconds = seconds
-        sys.exit(self.seconds)
+        exit(self.seconds)
 
 
 class Config:
@@ -435,7 +435,7 @@ class Config:
         config_path = script_folder / self.filename
 
         with open(config_path, 'w') as file:
-            json.dump({
+            dump({
                 'RIOT_GAMES_ROOT_FOLDER': str(RIOT_GAMES_ROOT_FOLDER),
                 'DEFAULT_TEXT_LANGUAGE': DEFAULT_TEXT_LANGUAGE,
                 'DEFAULT_VOICE_LANGUAGE': DEFAULT_VOICE_LANGUAGE
@@ -447,7 +447,7 @@ class Config:
 
         try:
             with open(config_path, 'r') as file:
-                config = json.load(file)
+                config = load(file)
             return {
                 'RIOT_GAMES_ROOT_FOLDER': config.get('RIOT_GAMES_ROOT_FOLDER', None),
                 'DEFAULT_TEXT_LANGUAGE': config.get('DEFAULT_TEXT_LANGUAGE', None),
