@@ -89,7 +89,7 @@ class Initialize:
             else:
                 print(Display().debug_screen('Make sure you have permissions to make folders'))
         else:
-            Settings().set_language_manually()
+            Settings()
 
 
 class Display:
@@ -309,9 +309,23 @@ class Settings:
         self.text_input = 0
         self.voice_input = 0
 
+        self.menu()
+
+    def menu(self):
+        print(Display().colored_screen(f'Do you want to\n1.Change Default Language\n2.Update Files', COLOR_ORANGE))
+        answer = input(Display().colored_screen('Enter your Choice: ', COLOR_GRAY))
+        if answer == '1':
+            self.change_text_language()
+            self.change_voice_language()
+        elif answer == '2':
+            self.set_language_manually()
+        else:
+            print(Display.colored_screen('No Such Option...', COLOR_RED))
+
     def change_language(self, language_type, default_language, default_language_code):
+        global DEFAULT_TEXT_LANGUAGE, DEFAULT_VOICE_LANGUAGE
         print(Display().colored_screen(
-            f'Current {language_type} Language: {default_language} File Name: {default_language_code}', COLOR_YELLOW))
+            f'Current {language_type} Language: {default_language} | File Name: {default_language_code}', COLOR_YELLOW))
 
         change_lang_input = input("Do you want to change this language? (y/n): ").lower()
 
@@ -323,23 +337,21 @@ class Settings:
             try:
                 selected_index = int(input(f"Enter the number for the new {language_type} language: "))
                 if 1 <= selected_index <= len(SUPPORTED_LANGUAGES):
-                    selected_language = list(SUPPORTED_LANGUAGES.keys())[selected_index - 1]
-                    selected_language_code = list(SUPPORTED_LANGUAGES.values())[selected_index - 1]
+                    selected_language, selected_language_code = list(SUPPORTED_LANGUAGES.items())[selected_index - 1]
 
                     setattr(self, f'{language_type.lower()}_language', selected_language)
                     setattr(self, f'{language_type.lower()}_language_code', selected_language_code)
 
-                    print(Display().colored_screen(
-                        f'{language_type} language changed to {selected_language} ({selected_language_code})',
-                        COLOR_GREEN))
-
-                    # Update default language variables
                     if language_type == 'Text':
-                        global DEFAULT_TEXT_LANGUAGE, DEFAULT_TEXT_LANGUAGE_CODE
-                        DEFAULT_TEXT_LANGUAGE, DEFAULT_TEXT_LANGUAGE_CODE = selected_language, selected_language_code
+                        DEFAULT_TEXT_LANGUAGE = selected_language
                     elif language_type == 'Voice':
-                        global DEFAULT_VOICE_LANGUAGE, DEFAULT_VOICE_LANGUAGE_CODE
-                        DEFAULT_VOICE_LANGUAGE, DEFAULT_VOICE_LANGUAGE_CODE = selected_language, selected_language_code
+                        DEFAULT_VOICE_LANGUAGE = selected_language
+
+                    Config().save_config()
+
+                    Display().clear_screen()
+
+                    return selected_language, selected_language_code  # Return the selected language
 
                 else:
                     print(Display().colored_screen('Invalid input. No changes made.', COLOR_RED))
@@ -350,20 +362,32 @@ class Settings:
         else:
             print(Display().colored_screen('Invalid input. No changes made.', COLOR_RED))
 
+        Display().clear_screen()
+
+        return default_language, default_language_code  # Return the default language if no change is made
+
     def change_text_language(self):
         try:
-            self.change_language('Text', self.text_language, self.text_language_code)
+            new_text_language, new_text_language_code = self.change_language('Text', self.text_language,
+                                                                             self.text_language_code)
+            print(Display().colored_screen(
+                f'Text language changed to {new_text_language} ({new_text_language_code})',
+                COLOR_GREEN))
         except Exception or WindowsError as er:
             print(Display().debug_screen(f"Error in change_text_language: {er}."))
             raise e
 
     def change_voice_language(self):
         try:
-            self.change_language('Voice', self.voice_language, self.voice_language_code)
+            new_voice_language, new_voice_language_code = self.change_language('Voice', self.voice_language,
+                                                                               self.voice_language_code)
+            print(Display().colored_screen(
+                f'Voice language changed to {new_voice_language} ({new_voice_language_code})',
+                COLOR_GREEN))
         except Exception or WindowsError as er:
             print(Display().debug_screen(f"Error in changing voice language: {er}."))
             raise e
-        
+
     def set_language_manually(self):
         lang_manual = [self.text_language, self.voice_language]
         lang_codes = [self.text_language_code, self.voice_language_code]
@@ -411,7 +435,11 @@ class Config:
         config_path = script_folder / self.filename
 
         with open(config_path, 'w') as file:
-            json.dump({'RIOT_GAMES_ROOT_FOLDER': str(RIOT_GAMES_ROOT_FOLDER)}, file)
+            json.dump({
+                'RIOT_GAMES_ROOT_FOLDER': str(RIOT_GAMES_ROOT_FOLDER),
+                'DEFAULT_TEXT_LANGUAGE': DEFAULT_TEXT_LANGUAGE,
+                'DEFAULT_VOICE_LANGUAGE': DEFAULT_VOICE_LANGUAGE
+            }, file)
 
     def load_config(self):
         script_folder = SCRIPT_FOLDER
@@ -420,12 +448,17 @@ class Config:
         try:
             with open(config_path, 'r') as file:
                 config = json.load(file)
-            return config.get('RIOT_GAMES_ROOT_FOLDER', None)
+            return {
+                'RIOT_GAMES_ROOT_FOLDER': config.get('RIOT_GAMES_ROOT_FOLDER', None),
+                'DEFAULT_TEXT_LANGUAGE': config.get('DEFAULT_TEXT_LANGUAGE', None),
+                'DEFAULT_VOICE_LANGUAGE': config.get('DEFAULT_VOICE_LANGUAGE', None)
+            }
         except FileNotFoundError:
             return None
 
     def get_location(self):
-        global RIOT_GAMES_ROOT_FOLDER
+        global default_text_language, default_voice_language
+        global RIOT_GAMES_ROOT_FOLDER, DEFAULT_TEXT_LANGUAGE, DEFAULT_VOICE_LANGUAGE
 
         if not self.config:
             print(Display().colored_screen("Enter your Riot Games Folder Location:", COLOR_YELLOW))
@@ -433,16 +466,36 @@ class Config:
             print(Display().colored_screen("Make sure it has both Riot Client and VALORANT Folders in it!!", COLOR_RED))
             answer = input(Display().colored_screen('Enter Location: ', COLOR_GRAY))
 
-            self.config = answer
-            RIOT_GAMES_ROOT_FOLDER = Path(answer).resolve()
+            default_text_language = input(Display().colored_screen(
+                f"Enter the default text language\n ({', '.join(SUPPORTED_LANGUAGES.keys())}): ",
+                COLOR_GRAY)).strip().title()
+
+            default_voice_language = input(Display().colored_screen(
+                f"Enter the default voice language (Current one in Riot Client )\n ({', '.join(SUPPORTED_LANGUAGES.keys())}): ",
+                COLOR_GRAY)).strip().title()
+
+            self.config = {
+                'RIOT_GAMES_ROOT_FOLDER': answer,
+                'DEFAULT_TEXT_LANGUAGE': default_text_language,
+                'DEFAULT_VOICE_LANGUAGE': default_voice_language
+            }
+
             self.save_config()
 
-        Initialize().script_started()
+        return (
+            Path(self.config['RIOT_GAMES_ROOT_FOLDER']).resolve(),
+            self.config['DEFAULT_TEXT_LANGUAGE'],
+            self.config['DEFAULT_VOICE_LANGUAGE']
+        )
 
 
 if __name__ == "__main__":
     try:
-        Config().get_location()
+        riot_games_folder, default_text_language, default_voice_language = Config().get_location()
+        RIOT_GAMES_ROOT_FOLDER = riot_games_folder
+        DEFAULT_TEXT_LANGUAGE = default_text_language
+        DEFAULT_VOICE_LANGUAGE = default_voice_language
+        Initialize().script_started()
     except Exception as e:
         print(f"Error in main block: {e}")
         raise e
