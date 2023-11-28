@@ -94,8 +94,8 @@ class Initialize:
 
 class Display:
     def __init__(self):
-        self.version = '0.1'
-        self.branch = 'Test'
+        self.version = '1.0'
+        self.branch = 'Global'
         self.debug = False
 
     @staticmethod
