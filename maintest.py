@@ -4,6 +4,7 @@ import re
 import shutil
 import subprocess
 import sys
+import json
 from pathlib import Path
 from time import sleep
 
@@ -80,6 +81,12 @@ class Initialize:
                     Display().clear_screen()
                     LogFile().find_log()
                     LogFile().parse_log()
+                else:
+                    print(Display().debug_screen('Make sure you have the correct Riot Games Location in Config'))
+            else:
+                print(Display().debug_screen('Make sure you have permissions to make folders'))
+        else:
+            pass
 
 
 class Display:
@@ -392,9 +399,42 @@ class Error:
         sys.exit(self.seconds)
 
 
+class Config:
+    def __init__(self, filename='config.json'):
+        self.filename = filename
+        self.config = self.load_config()
+
+    def save_config(self):
+        with open(self.filename, 'w') as file:
+            json.dump({'RIOT_GAMES_ROOT_FOLDER': self.config}, file)
+
+    def load_config(self):
+        try:
+            with open(self.filename, 'r') as file:
+                config = json.load(file)
+            return config.get('RIOT_GAMES_ROOT_FOLDER', None)
+        except FileNotFoundError:
+            return None
+
+    def get_location(self):
+        global RIOT_GAMES_ROOT_FOLDER
+
+        if not self.config:
+            print(Display().colored_screen("Enter your Riot Games Folder Location:", COLOR_YELLOW))
+            print(Display().colored_screen("Example: D:\\Riot Games", COLOR_CYAN))
+            print(Display().colored_screen("Make sure it has both Riot Client and VALORANT Folders in it!!", COLOR_RED))
+            answer = input(Display.colored_screen('Enter Location: ', COLOR_GREEN))
+
+            self.config = answer
+            RIOT_GAMES_ROOT_FOLDER = Path(answer).resolve()
+            self.save_config()
+
+        Initialize().script_started()
+
+
 if __name__ == "__main__":
     try:
-        Initialize().script_started()
+        Config().get_location()
     except Exception as e:
         print(f"Error in main block: {e}")
         raise e
