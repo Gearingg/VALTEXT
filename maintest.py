@@ -7,10 +7,6 @@ import sys
 from pathlib import Path
 from time import sleep
 
-# Script Variables
-script_version = '1.0'
-debug_mode = False
-
 # Game Root Folder
 RIOT_GAMES_ROOT_FOLDER = Path('D:/Riot Games').resolve()
 
@@ -84,8 +80,9 @@ class Initialize:
 
 class Display:
     def __init__(self):
-        self.version = script_version
-        self.debug = debug_mode
+        self.version = '0.1'
+        self.branch = 'Test'
+        self.debug = False
 
     @staticmethod
     def colored_screen(message, color_code):
@@ -101,7 +98,7 @@ class Display:
     def clear_screen(self=None):
         os.system('cls' if os.name == 'nt' else 'clear')
         print(self.colored_screen('----------------------------------', COLOR_RED))
-        print(self.colored_screen(f'ValText - Global Version {self.version}', COLOR_GREEN))
+        print(self.colored_screen(f'ValText - {self.branch} Version {self.version}', COLOR_GREEN))
         print(self.colored_screen('----------------------------------', COLOR_RED))
         return
 
@@ -121,10 +118,10 @@ class Display:
 
 class Checks:
     def __init__(self):
-        self.text_pak_files = DEFAULT_TEXT_LANGUAGE_FOLDER / f'{DEFAULT_TEXT_LANGUAGE_CODE}.pak'
-        self.text_sig_files = DEFAULT_TEXT_LANGUAGE_FOLDER / f'{DEFAULT_TEXT_LANGUAGE_CODE}.sig'
-        self.voice_pak_files = DEFAULT_VOICE_LANGUAGE_FOLDER / f'{DEFAULT_VOICE_LANGUAGE_CODE}.pak'
-        self.voice_sig_files = DEFAULT_VOICE_LANGUAGE_FOLDER / f'{DEFAULT_VOICE_LANGUAGE_CODE}.sig'
+        self.text_pak_files = DEFAULT_TEXT_LANGUAGE_PAK
+        self.text_sig_files = DEFAULT_TEXT_LANGUAGE_SIG
+        self.voice_pak_files = DEFAULT_VOICE_LANGUAGE_PAK
+        self.voice_sig_files = DEFAULT_VOICE_LANGUAGE_SIG
 
     def create_folders(self):
         try:
@@ -135,7 +132,7 @@ class Checks:
                 return False
             return True
         except Exception as error:
-            print(Display.colored_screen(f"Error creating folders: {error}", COLOR_RED))
+            print(display.debug_screen(f"Error creating folders: {error}"))
             return False
 
     def copy_text_language_files(self):
@@ -144,8 +141,7 @@ class Checks:
             shutil.copy(self.text_sig_files, VALORANT_FILES)
             return True
         except Exception as error:
-            print(Display.colored_screen(f"Error Copying Files: {error}", COLOR_RED))
-            print('Error in Text')
+            print(display.debug_screen(f"Error Copying Files: {error}"))
             return False
 
     def copy_voice_language_files(self):
@@ -154,8 +150,7 @@ class Checks:
             shutil.copy(self.voice_sig_files, VALORANT_FILES)
             return True
         except Exception as error:
-            print(Display.colored_screen(f"Error Copying Files: {error}", COLOR_RED))
-            print('Error in voice')
+            print(display.debug_screen(f"Error Copying Files: {error}"))
             return False
 
 
@@ -166,10 +161,10 @@ class RiotGames:
     def start_riot_client(self):
         try:
             subprocess.Popen([self.riot_client])
-            print(Display.colored_screen(f"Starting Riot Client...", COLOR_CYAN))
+            print(display.colored_screen(f"Starting Riot Client...", COLOR_CYAN))
             return True
         except Exception as error:
-            print(Display.colored_screen(f"Error Starting Riot Client: {error}", COLOR_RED))
+            print(display.debug_screen(f"Error Starting Riot Client: {error}"))
             return False
 
     def start_valorant(self):
@@ -180,17 +175,18 @@ class RiotGames:
 
         try:
             subprocess.Popen([self.riot_client] + arguments)
-            print(Display.colored_screen(f"Launching Valorant...", COLOR_CYAN))
+            print(display.colored_screen(f"Launching Valorant...", COLOR_CYAN))
             return True
         except Exception as error:
-            print(Display.colored_screen(f"Error launching Valorant: {error}", COLOR_RED))
+            print(display.debug_screen(f"Error Launching Valorant: {error}"))
             return False
 
 
 class LogFile:
     def __init__(self):
-        self.logfile = Path(os.path.join(os.getenv('LOCALAPPDATA'), 'Riot Games', 'Riot Client', 'logs', 'riot client logs')).resolve()
-
+        self.riot_base_path = Path(os.path.join(os.getenv('LOCALAPPDATA'), 'Riot Games')).resolve()
+        self.client_logs_path = (self.riot_base_path / 'Riot Client' / 'logs ' / 'riot client logs').resolve()
+        self.logfile = (self.riot_base_path / self.client_logs_path).resolve()
         self.last_read_position = 0
 
         self.log = None  # Initialize log with None
@@ -226,7 +222,9 @@ class LogFile:
 
 class Triggers:
     def __init__(self):
-        self.trigger_pattern = r'(\d+\.\d+)\|\s+ALWAYS\|\s+rnet-product-registry: TransitionToCombinedPatchState: install \'valorant.live\' switching states \'(.*?)\' -> \'(.*?)\' because \'statusPatchPlugin\''
+        self.trigger_pattern = \
+            r'(\d+\.\d+)\|\s+ALWAYS\|\s+rnet-product-registry: TransitionToCombinedPatchState: \
+            install \'valorant.live\' switching states \'(.*?)\' -> \'(.*?)\' because \'statusPatchPlugin\''
         self.CurrentState = ''
 
     def check_triggers(self, log):
@@ -246,17 +244,20 @@ class Triggers:
     def out_of_date(self):
         if not self.CurrentState == 'OutofDate':
             self.CurrentState = 'OutofDate'
-            print(Display.colored_screen('Update available!', COLOR_YELLOW))
+            display.clear_screen()
+            print(display.colored_screen('Update available!', COLOR_YELLOW))
 
     def updating(self):
         if not self.CurrentState == 'Updating':
             self.CurrentState = 'Updating'
-            print(Display.colored_screen('Updating Valorant! Please wait...', COLOR_CYAN))
+            display.clear_screen()
+            print(display.colored_screen('Updating Valorant! Please wait...', COLOR_CYAN))
 
     def updated(self):
         if not self.CurrentState == 'UpToDate':
             self.CurrentState = 'UpToDate'
-            print(Display.colored_screen('Valorant updated!', COLOR_GREEN))
+            display.clear_screen()
+            print(display.colored_screen('Valorant updated!', COLOR_GREEN))
 
             checks.copy_text_language_files()
             sleep(1)
@@ -282,13 +283,13 @@ class Settings:
         self.voice_input = 0
 
     def change_language(self, language_type, default_language, default_language_code):
-        print(Display.colored_screen(
+        print(display.colored_screen(
             f'Current {language_type} Language: {default_language} File Name: {default_language_code}', COLOR_YELLOW))
 
         change_lang_input = input("Do you want to change this language? (y/n): ").lower()
 
         if change_lang_input in ('y', 'yes'):
-            print(Display.colored_screen(f'Supported Languages for {language_type}: ', COLOR_YELLOW))
+            print(display.colored_screen(f'Supported Languages for {language_type}: ', COLOR_GREEN))
             for index, (language, code) in enumerate(SUPPORTED_LANGUAGES.items(), start=1):
                 print(f"{index}. {language} ({code})")
 
@@ -301,7 +302,7 @@ class Settings:
                     setattr(self, f'{language_type.lower()}_language', selected_language)
                     setattr(self, f'{language_type.lower()}_language_code', selected_language_code)
 
-                    print(Display.colored_screen(
+                    print(display.colored_screen(
                         f'{language_type} language changed to {selected_language} ({selected_language_code})',
                         COLOR_GREEN))
 
@@ -314,31 +315,28 @@ class Settings:
                         DEFAULT_VOICE_LANGUAGE, DEFAULT_VOICE_LANGUAGE_CODE = selected_language, selected_language_code
 
                 else:
-                    print(Display.colored_screen('Invalid input. No changes made.', COLOR_RED))
+                    print(display.colored_screen('Invalid input. No changes made.', COLOR_RED))
             except ValueError:
-                print(Display.colored_screen('Invalid input. Please enter a valid number.', COLOR_RED))
+                print(display.debug_screen('Invalid input. Please enter a valid number.'))
         elif change_lang_input in ('n', 'no'):
             pass
         else:
-            print(Display.colored_screen('Invalid input. No changes made.', COLOR_RED))
+            print(display.colored_screen('Invalid input. No changes made.', COLOR_RED))
 
     def change_text_language(self):
         try:
             self.change_language('Text', self.text_language, self.text_language_code)
-
-            print("After change_language call")
-            print(self.text_language)
-            print(self.text_language_code)
-            print(self.text_language_folder)
-            print(self.text_language_pak)
-            print(self.text_language_sig)
-        except Exception as er:
-            print(f"Error in change_text_language: {er}")
+        except Exception or WindowsError as er:
+            print(display.debug_screen(f"Error in change_text_language: {er}."))
             raise e
 
     def change_voice_language(self):
-        self.change_language('Voice', self.voice_language, self.voice_language_code)
-
+        try:
+            self.change_language('Voice', self.voice_language, self.voice_language_code)
+        except Exception or WindowsError as er:
+            print(display.debug_screen(f"Error in changing voice language: {er}."))
+            raise e
+        
     def set_language_manually(self):
         lang_manual = [self.text_language, self.voice_language]
         lang_codes = [self.text_language_code, self.voice_language_code]
@@ -352,19 +350,19 @@ class Settings:
             destination_sig = folder / f'{lang_code}.sig'
             destination_pak = folder / f'{lang_code}.pak'
 
-            print(Display.colored_screen(f'Set to {lang_manual} - {lang_code}', COLOR_YELLOW))
-            input(Display.colored_screen('Press Enter to Continue...', COLOR_YELLOW))
+            print(display.colored_screen(f'Set to {lang_manual} - {lang_code}', COLOR_YELLOW))
+            input(display.colored_screen('Press Enter to Continue...', COLOR_YELLOW))
 
             try:
-                print(Display.colored_screen(
+                print(display.colored_screen(
                     f"Copying {source_sig} to {destination_sig}\nCopying {source_pak} to {destination_pak}",
                     COLOR_GREEN))
                 shutil.copy(source_sig, destination_sig)
                 shutil.copy(source_pak, destination_pak)
-                print(Display.colored_screen("Copy successful!", COLOR_GREEN))
+                print(display.colored_screen("Copy successful!", COLOR_GREEN))
                 return True
             except FileNotFoundError as error:
-                print(Display.colored_screen(f"Error copying {source_sig} to {destination_sig}: {error}", COLOR_RED))
+                print(display.colored_screen(f"Error copying {source_sig} to {destination_sig}: {error}", COLOR_RED))
                 return False
 
 
@@ -395,3 +393,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Error in main block: {e}")
         raise e
+    
